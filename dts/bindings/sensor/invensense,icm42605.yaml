@@ -35,5 +35,3 @@ properties:
       description: |
         Set to indicate clock leading edge is falling (CPOL=1).
         For this driver using this property requires also using cpha.
-
-

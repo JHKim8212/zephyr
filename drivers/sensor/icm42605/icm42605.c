@@ -154,34 +154,46 @@ static int icm42605_sample_fetch(struct device *dev, enum sensor_channel chan)
 		result = inv_spi_read(REG_FIFO_DATA, data, fifo_count);
 
 		/* FIFO Data structure
-		 * Packet 1 : FIFO Header(1), AccelX(2), AccelY(2), AccelZ(2), Temperature(1)
-		 * Packet 2 : FIFO Header(1), GyroX(2), GyroY(2), GyroZ(2), Temperature(1)
-		 * Packet 3 : FIFO Header(1), AccelX(2), AccelY(2), AccelZ(2), GyroX(2), GyroY(2), GyroZ(2), Temperature(1)
+		 * Packet 1 : FIFO Header(1), AccelX(2), AccelY(2),
+		 *            AccelZ(2), Temperature(1)
+		 * Packet 2 : FIFO Header(1), GyroX(2), GyroY(2),
+		 *            GyroZ(2), Temperature(1)
+		 * Packet 3 : FIFO Header(1), AccelX(2), AccelY(2), AccelZ(2),
+		 *            GyroX(2), GyroY(2), GyroZ(2), Temperature(1)
 		 */
 
 		if (data[0] & BIT_FIFO_HEAD_ACCEL) {
 			/* Check empty values */
 			if (!(data[1] == 0x80 && data[2] == 0x00)) {
-				drv_data->accel_x = ((data[1] & 0xff) << 8) + (data[2] & 0xff);
-				drv_data->accel_y = ((data[3] & 0xff) << 8) + (data[4] & 0xff);
-				drv_data->accel_z = ((data[5] & 0xff) << 8) + (data[6] & 0xff);
+				drv_data->accel_x = ((data[1] & 0xff) << 8)
+					+ (data[2] & 0xff);
+				drv_data->accel_y = ((data[3] & 0xff) << 8)
+					+ (data[4] & 0xff);
+				drv_data->accel_z = ((data[5] & 0xff) << 8)
+					+ (data[6] & 0xff);
 			}
 			if (!(data[0] & BIT_FIFO_HEAD_GYRO)) {
 				drv_data->temp = (int16_t)data[7];
 			} else {
 				if (!(data[7] == 0x80 && data[8] == 0x00)) {
-					drv_data->gyro_x = ((data[7] & 0xff) << 8) + (data[8] & 0xff);
-					drv_data->gyro_y = ((data[9] & 0xff) << 8) + (data[10] & 0xff);
-					drv_data->gyro_z = ((data[11] & 0xff) << 8) + (data[12] & 0xff);
+					drv_data->gyro_x = ((data[7] & 0xff) << 8)
+						+ (data[8] & 0xff);
+					drv_data->gyro_y = ((data[9] & 0xff) << 8)
+						+ (data[10] & 0xff);
+					drv_data->gyro_z = ((data[11] & 0xff) << 8)
+						+ (data[12] & 0xff);
 				}
 				drv_data->temp = (int16_t)data[13];
 			}
 		} else {
 			if (data[0] & BIT_FIFO_HEAD_GYRO) {
 				if (!(data[1] == 0x80 && data[2] == 0x00)) {
-					drv_data->gyro_x = ((data[1] & 0xff) << 8) + (data[2] & 0xff);
-					drv_data->gyro_y = ((data[3] & 0xff) << 8) + (data[4] & 0xff);
-					drv_data->gyro_z = ((data[5] & 0xff) << 8) + (data[6] & 0xff);
+					drv_data->gyro_x = ((data[1] & 0xff) << 8)
+						+ (data[2] & 0xff);
+					drv_data->gyro_y = ((data[3] & 0xff) << 8)
+						+ (data[4] & 0xff);
+					drv_data->gyro_z = ((data[5] & 0xff) << 8)
+						+ (data[6] & 0xff);
 				}
 				drv_data->temp = (int16_t)data[7];
 			}
@@ -389,4 +401,3 @@ DEVICE_AND_API_INIT(icm42605, DT_INST_LABEL(0),
 		    icm42605_init, &icm42605_driver, &icm42605_cfg,
 		    POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY,
 		    &icm42605_driver_api);
-
