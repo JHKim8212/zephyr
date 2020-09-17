@@ -22,7 +22,9 @@ int icm42605_trigger_set(struct device *dev,
 	struct icm42605_data *drv_data = dev->data;
 	const struct icm42605_config *cfg = dev->config;
 
-	if (trig->type != SENSOR_TRIG_DATA_READY && trig->type != SENSOR_TRIG_TAP && trig->type != SENSOR_TRIG_DOUBLE_TAP) {
+	if (trig->type != SENSOR_TRIG_DATA_READY
+	    && trig->type != SENSOR_TRIG_TAP
+	    && trig->type != SENSOR_TRIG_DOUBLE_TAP) {
 		return -ENOTSUP;
 	}
 
@@ -37,7 +39,8 @@ int icm42605_trigger_set(struct device *dev,
 	if (trig->type == SENSOR_TRIG_DATA_READY) {
 		drv_data->data_ready_handler = handler;
 		drv_data->data_ready_trigger = *trig;
-	} else if (trig->type == SENSOR_TRIG_TAP || trig->type == SENSOR_TRIG_DOUBLE_TAP) {
+	} else if (trig->type == SENSOR_TRIG_TAP
+		   || trig->type == SENSOR_TRIG_DOUBLE_TAP) {
 		drv_data->tap_handler = handler;
 		drv_data->tap_trigger = *trig;
 	} else {

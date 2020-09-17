@@ -507,19 +507,19 @@
 #define GYR_LPM_MAX_RATE		200
 
 enum {
-        GYRO_FS_2000DPS = 0,
-        GYRO_FS_1000DPS,
-        GYRO_FS_500DPS,
-        GYRO_FS_250DPS,
-        GYRO_FS_125DPS,
-        GYRO_FS_62DPS,
-        GYRO_FS_32DPS,
-        GYRO_FS_15DPS,
+	GYRO_FS_2000DPS = 0,
+	GYRO_FS_1000DPS,
+	GYRO_FS_500DPS,
+	GYRO_FS_250DPS,
+	GYRO_FS_125DPS,
+	GYRO_FS_62DPS,
+	GYRO_FS_32DPS,
+	GYRO_FS_15DPS,
 };
 
 enum {
-        ACCEL_FS_16G = 0,
-        ACCEL_FS_8G,
-        ACCEL_FS_4G,
-        ACCEL_FS_2G,
+	ACCEL_FS_16G = 0,
+	ACCEL_FS_8G,
+	ACCEL_FS_4G,
+	ACCEL_FS_2G,
 };

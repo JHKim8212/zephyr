@@ -89,7 +89,7 @@ int icm42605_spi_init(struct device *spi_device, struct spi_config *spi_config)
 	spi_dev = spi_device;
 
 	if (!spi_dev) {
-		LOG_ERR("Cannot get SPI bus infomation");
+		LOG_ERR("Cannot get SPI bus information");
 		return -EINVAL;
 	}
 
