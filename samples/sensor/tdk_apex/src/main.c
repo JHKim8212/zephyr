@@ -11,17 +11,15 @@
 #include <zephyr/drivers/sensor/tdk_apex.h>
 #include <stdio.h>
 
-/** @brief Tap number definition */
-typedef enum {
-	TAP_TRIPLE = 0x03,
-	TAP_DOUBLE = 0x02,
-	TAP_SINGLE = 0x01,
-} tap_num_t;
-
 static struct sensor_trigger data_trigger;
+static struct sensor_trigger data_rd_trigger;
+
 
 /* Flag set from IMU device irq handler */
 static volatile int irq_from_device;
+
+static volatile int motion_trig;
+static volatile int data_trig;
 
 /*
  * Get a device structure from a devicetree node from alias
@@ -74,14 +72,38 @@ static void handle_tdk_apex_drdy(const struct device *dev, const struct sensor_t
 			return;
 		} else if (rc == 0) {
 			irq_from_device = 1;
+			motion_trig = 1;
 		}
 	}
 }
+
+static void handle_6dof_motion_drdy(const struct device *dev, const struct sensor_trigger *trig)
+{
+        if (trig->type == SENSOR_TRIG_DATA_READY) {
+                int rc = sensor_sample_fetch_chan(dev, trig->chan);
+
+                if (rc < 0) {
+                        printf("sample fetch failed: %d\n", rc);
+                        printf("cancelling trigger due to failure: %d\n", rc);
+                        (void)sensor_trigger_set(dev, trig, NULL);
+                        return;
+                } else if (rc == 0) {
+                        irq_from_device = 1;
+			data_trig = 1;
+                }
+        }
+}
+
 
 int main(void)
 {
 	const struct device *dev = get_tdk_apex_device();
 	struct sensor_value apex_mode;
+	struct sensor_value accel[3];
+	struct sensor_value gyro[3];
+	struct sensor_value temperature;
+	struct sensor_value accel_odr, gyro_odr;
+
 
 	if (dev == NULL) {
 		return 0;
@@ -113,59 +135,96 @@ int main(void)
 
 	printf("Configured for APEX data collecting.\n");
 
+	
+	data_rd_trigger = (struct sensor_trigger){
+		.type = SENSOR_TRIG_DATA_READY,
+			.chan = SENSOR_CHAN_ALL,
+	};
+
+	if (sensor_trigger_set(dev, &data_rd_trigger, handle_6dof_motion_drdy) < 0) {
+		printf("Cannot configure data trigger!!!\n");
+		return 0;
+	}
+
+	accel_odr.val1 = 12;
+        accel_odr.val2 = 0;
+        gyro_odr.val1 = 12;
+        gyro_odr.val2 = 0;
+
+        sensor_attr_set(dev, SENSOR_CHAN_ACCEL_XYZ, SENSOR_ATTR_SAMPLING_FREQUENCY, &accel_odr);
+        sensor_attr_set(dev, SENSOR_CHAN_GYRO_XYZ, SENSOR_ATTR_SAMPLING_FREQUENCY, &gyro_odr);
+
+
 	k_sleep(K_MSEC(1000));
 
 	while (1) {
-
 		if (irq_from_device) {
-			if (apex_mode.val1 == TDK_APEX_PEDOMETER) {
-				struct sensor_value apex_pedometer[3];
+			if (motion_trig){
+				printf("Motion Triggered\n");
+				if (apex_mode.val1 == TDK_APEX_PEDOMETER) {
+					struct sensor_value apex_pedometer[3];
 
-				sensor_channel_get(dev, SENSOR_CHAN_APEX_MOTION, apex_pedometer);
+					sensor_channel_get(dev, SENSOR_CHAN_APEX_MOTION, apex_pedometer);
 
-				printf("[%s]: STEP_DET     count: %d steps  cadence: %.1f steps/s  "
-				       "activity: %s\n",
-				       now_str(), apex_pedometer[0].val1,
-				       sensor_value_to_double(&apex_pedometer[2]),
-				       apex_pedometer[1].val1 == 1   ? "Walk"
-				       : apex_pedometer[1].val1 == 2 ? "Run"
-								     : "Unknown");
-			} else if (apex_mode.val1 == TDK_APEX_TILT) {
-				struct sensor_value apex_tilt;
+					printf("[%s]: STEP_DET     count: %d steps  cadence: %.1f steps/s  "
+							"activity: %s\n",
+							now_str(), apex_pedometer[0].val1,
+							sensor_value_to_double(&apex_pedometer[2]),
+							apex_pedometer[1].val1 == 1   ? "Walk"
+							: apex_pedometer[1].val1 == 2 ? "Run"
+							: "Unknown");
+				} else if (apex_mode.val1 == TDK_APEX_TILT) {
+					struct sensor_value apex_tilt;
 
-				sensor_channel_get(dev, SENSOR_CHAN_APEX_MOTION, &apex_tilt);
+					sensor_channel_get(dev, SENSOR_CHAN_APEX_MOTION, &apex_tilt);
 
-				printf("[%s]: %s\n", now_str(),
-				       apex_tilt.val1 ? "TILT" : "Unknown trig");
-			} else if (apex_mode.val1 == TDK_APEX_WOM) {
-				struct sensor_value apex_wom[3];
+					printf("[%s]: %s\n", now_str(),
+							apex_tilt.val1 ? "TILT" : "Unknown trig");
 
-				sensor_channel_get(dev, SENSOR_CHAN_APEX_MOTION, apex_wom);
+				} else if (apex_mode.val1 == TDK_APEX_WOM) {
+					struct sensor_value apex_wom[3];
 
-				printf("[%s]: WOM x=%d y=%d z=%d\n", now_str(), apex_wom[0].val1,
-				       apex_wom[1].val1, apex_wom[2].val1);
-			} else if (apex_mode.val1 == TDK_APEX_SMD) {
-				struct sensor_value apex_smd;
+					sensor_channel_get(dev, SENSOR_CHAN_APEX_MOTION, apex_wom);
 
-				sensor_channel_get(dev, SENSOR_CHAN_APEX_MOTION, &apex_smd);
+					printf("[%s]: WOM x=%d y=%d z=%d\n", now_str(), apex_wom[0].val1,
+							apex_wom[1].val1, apex_wom[2].val1);
 
-				printf("[%s]: %s\n", now_str(),
-				       apex_smd.val1 ? "SMD" : "Unknown trig");
-			} else if (apex_mode.val1 == TDK_APEX_TAP) {
-				struct sensor_value apex_tap;
+				} else if (apex_mode.val1 == TDK_APEX_SMD) {
+					struct sensor_value apex_smd;
 
-				sensor_channel_get(dev, SENSOR_CHAN_APEX_MOTION, &apex_tap);
+					sensor_channel_get(dev, SENSOR_CHAN_APEX_MOTION, &apex_smd);
 
-				if (apex_tap.val1 == TAP_SINGLE) {
-					printf("[%s]: Single TAP\n", now_str());
-				} else if (apex_tap.val1 == TAP_DOUBLE) {
-					printf("[%s]: Double TAP\n", now_str());
-				} else if (apex_tap.val1 == TAP_TRIPLE) {
-					printf("[%s]: Triple TAP\n", now_str());
-				} else {
-					printf("[%s]: Unknown trig\n", now_str());
-				}
+					printf("[%s]: %s\n", now_str(),
+							apex_smd.val1 ? "SMD" : "Unknown trig");
+
+				} else if (apex_mode.val1 == TDK_APEX_TAP) {
+					struct sensor_value apex_tap;
+
+					sensor_channel_get(dev, SENSOR_CHAN_APEX_MOTION, &apex_tap);
+
+					printf("[%s]: %s\n", now_str(),
+							apex_tap.val1 ? "TAP" : "Unknown trig");
+
+				} 
+				motion_trig = 0;
 			}
+			if (data_trig) {
+				sensor_channel_get(dev, SENSOR_CHAN_ACCEL_XYZ, accel);
+                        sensor_channel_get(dev, SENSOR_CHAN_GYRO_XYZ, gyro);
+                        sensor_channel_get(dev, SENSOR_CHAN_DIE_TEMP, &temperature);
+/*
+                        printf("[%s]: temp %.2f Cel "
+                               "  accel %f %f %f m/s/s "
+                               "  gyro  %f %f %f rad/s\n",
+                               now_str(), sensor_value_to_double(&temperature),
+                               sensor_value_to_double(&accel[0]), sensor_value_to_double(&accel[1]),
+                               sensor_value_to_double(&accel[2]), sensor_value_to_double(&gyro[0]),
+                               sensor_value_to_double(&gyro[1]), sensor_value_to_double(&gyro[2]));
+				data_trig = 0;
+*/
+			}
+
+
 			irq_from_device = 0;
 		}
 	}

@@ -29,6 +29,6 @@
 		gyro-hz = <50>;
 		accel-fs = <16>;
 		gyro-fs = <2000>;
-		apex = "pedometer";
+		apex = "tap";
 	};
 };
